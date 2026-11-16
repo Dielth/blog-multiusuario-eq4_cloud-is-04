@@ -316,6 +316,45 @@ def editor(id=None):
 
     return render_template("editor.html", entrada=entrada, categorias=categorias_db)
 
+@app.route("/eliminar/<int:id>", methods=["POST"])
+def eliminar_entrada(id):
+    if not session.get("user_id"):
+        flash("Debes iniciar sesión para realizar esta acción.", "warning")
+        return redirect(url_for("login"))
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT autor_id FROM entradas WHERE id = %s", (id,))
+            entrada = cur.fetchone()
+            if not entrada:
+                flash("La publicación no existe.", "danger")
+                return redirect(url_for("panel"))
+
+            if entrada["autor_id"] != session["user_id"] and session.get("rol") != "moderador":
+                flash("No tienes permiso para eliminar esta publicación.", "danger")
+                return redirect(url_for("panel"))
+
+            # Obtener claves S3 de los adjuntos vinculados
+            cur.execute("SELECT clave_s3 FROM adjuntos WHERE entrada_id = %s", (id,))
+            adjuntos = cur.fetchall()
+            for adj in adjuntos:
+                if adj.get("clave_s3"):
+                    try:
+                        s3.delete_object(Bucket=BUCKET, Key=adj["clave_s3"])
+                    except Exception as e:
+                        app.logger.warning(f"No se pudo borrar objeto S3 {adj['clave_s3']}: {e}")
+
+            # Eliminar registros dependientes y la publicación en RDS
+            cur.execute("DELETE FROM comentarios WHERE entrada_id = %s", (id,))
+            cur.execute("DELETE FROM adjuntos WHERE entrada_id = %s", (id,))
+            cur.execute("DELETE FROM entradas WHERE id = %s", (id,))
+    finally:
+        conn.close()
+
+    flash("Publicación y archivo adjunto eliminados permanentemente de S3 y de la base de datos.", "success")
+    return redirect(url_for("panel"))
+
 @app.route("/moderar/<int:id>/<accion>", methods=["POST"])
 def moderar(id, accion):
     if session.get("rol") != "moderador":
