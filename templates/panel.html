@@ -3,7 +3,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2 class="h4 fw-bold mb-0">
-            {{ 'Panel de Moderación Global' if session.get('rol') == 'moderador' else 'Gestión de Mis Publicaciones' }}
+            {{ 'Panel de Moderación de Publicaciones' if session.get('rol') == 'moderador' else 'Gestión de Mis Publicaciones' }}
         </h2>
         <small class="text-muted">
             {{ 'Administra la visibilidad de todas las entradas del blog.' if session.get('rol') == 'moderador' else 'Crea borradores, edita tus textos o publícalos al público.' }}

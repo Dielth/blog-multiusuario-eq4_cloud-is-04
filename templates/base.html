@@ -31,9 +31,14 @@
                 {% if session.get('user_id') %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('panel') }}">
-                        {{ 'Panel de Moderación' if session.get('rol') == 'moderador' else 'Mis Publicaciones' }}
+                        {{ 'Moderación de Publicaciones' if session.get('rol') == 'moderador' else 'Mis Publicaciones' }}
                     </a>
                 </li>
+                {% if session.get('rol') == 'moderador' %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('moderar_usuarios') }}">Moderación de Usuarios</a>
+                </li>
+                {% endif %}
                 {% endif %}
             </ul>
             <div class="d-flex align-items-center gap-2">

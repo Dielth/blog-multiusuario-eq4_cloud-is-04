@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h2 class="h4 fw-bold mb-0">Panel de Moderación de Usuarios</h2>
+        <small class="text-muted">Administra los perfiles registrados, asigna permisos de moderador o elimina cuentas.</small>
+    </div>
+    <div class="input-group" style="max-width: 280px;">
+        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+        <input type="text" id="filtro-usuarios" class="form-control form-control-sm" placeholder="Filtrar por nombre o usuario...">
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="tabla-usuarios">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre completo</th>
+                    <th>Usuario</th>
+                    <th>Rol</th>
+                    <th class="text-center">Publicaciones</th>
+                    <th class="text-center">Comentarios</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr>
+                    <td class="text-muted">#{{ u.id }}</td>
+                    <td class="fw-semibold">
+                        {{ u.nombre }}
+                        {% if u.id == session.get('user_id') %}
+                            <span class="badge bg-info text-dark ms-1">Tú</span>
+                        {% endif %}
+                    </td>
+                    <td><code>@{{ u.usuario }}</code></td>
+                    <td>
+                        {% if u.rol == 'moderador' %}
+                            <span class="badge bg-dark"><i class="bi bi-shield-check me-1"></i>Moderador</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Autor</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">{{ u.total_entradas }}</td>
+                    <td class="text-center">{{ u.total_comentarios }}</td>
+                    <td class="text-end">
+                        {% if u.id != session.get('user_id') %}
+                        <div class="d-inline-flex gap-1">
+                            {% if u.rol == 'autor' %}
+                                <form method="POST" action="{{ url_for('cambiar_rol_usuario', id=u.id) }}" class="d-inline">
+                                    <input type="hidden" name="rol" value="moderador">
+                                    <button type="submit" class="btn btn-sm btn-outline-dark" title="Promover a Moderador">
+                                        <i class="bi bi-shield-plus me-1"></i>Hacer Moderador
+                                    </button>
+                                </form>
+                            {% else %}
+                                <form method="POST" action="{{ url_for('cambiar_rol_usuario', id=u.id) }}" class="d-inline">
+                                    <input type="hidden" name="rol" value="autor">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Cambiar a Autor">
+                                        <i class="bi bi-person me-1"></i>Hacer Autor
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                            <form method="POST" action="{{ url_for('eliminar_usuario', id=u.id) }}" class="d-inline"
+                                  onsubmit="return confirm('¿Eliminar permanentemente al usuario @{{ u.usuario }} junto con sus publicaciones, comentarios y archivos en S3?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar usuario">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% else %}
+                            <span class="text-muted small">Sesión actual</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-muted">No hay usuarios registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+document.getElementById('filtro-usuarios').addEventListener('input', function () {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#tabla-usuarios tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

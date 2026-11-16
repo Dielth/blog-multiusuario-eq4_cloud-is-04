@@ -355,6 +355,94 @@ def eliminar_entrada(id):
     flash("Publicación y archivo adjunto eliminados permanentemente de S3 y de la base de datos.", "success")
     return redirect(url_for("panel"))
 
+@app.route("/usuarios")
+def moderar_usuarios():
+    if session.get("rol") != "moderador":
+        flash("Acceso restringido: Se requiere perfil de moderador.", "danger")
+        return redirect(url_for("index"))
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT u.id, u.nombre, u.usuario, u.rol,
+                       COUNT(DISTINCT e.id) AS total_entradas,
+                       COUNT(DISTINCT c.id) AS total_comentarios
+                FROM usuarios u
+                LEFT JOIN entradas e ON e.autor_id = u.id
+                LEFT JOIN comentarios c ON c.usuario_id = u.id
+                GROUP BY u.id, u.nombre, u.usuario, u.rol
+                ORDER BY u.id ASC
+            """)
+            usuarios = cur.fetchall()
+    finally:
+        conn.close()
+
+    return render_template("usuarios.html", usuarios=usuarios)
+
+@app.route("/usuarios/<int:id>/rol", methods=["POST"])
+def cambiar_rol_usuario(id):
+    if session.get("rol") != "moderador":
+        flash("Operación no permitida.", "danger")
+        return redirect(url_for("index"))
+
+    if id == session.get("user_id"):
+        flash("No puedes cambiar tu propio rol mientras estás conectado.", "warning")
+        return redirect(url_for("moderar_usuarios"))
+
+    nuevo_rol = request.form.get("rol", "autor")
+    if nuevo_rol not in ("autor", "moderador"):
+        nuevo_rol = "autor"
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE usuarios SET rol = %s WHERE id = %s", (nuevo_rol, id))
+    finally:
+        conn.close()
+
+    flash(f"Rol actualizado a '{nuevo_rol}' para el usuario #{id}.", "success")
+    return redirect(url_for("moderar_usuarios"))
+
+@app.route("/usuarios/<int:id>/eliminar", methods=["POST"])
+def eliminar_usuario(id):
+    if session.get("rol") != "moderador":
+        flash("Operación no permitida.", "danger")
+        return redirect(url_for("index"))
+
+    if id == session.get("user_id"):
+        flash("No puedes eliminar tu propia cuenta de moderador activa.", "warning")
+        return redirect(url_for("moderar_usuarios"))
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            # Eliminar de S3 todos los adjuntos de las entradas del usuario
+            cur.execute("""
+                SELECT a.clave_s3
+                FROM adjuntos a
+                JOIN entradas e ON e.id = a.entrada_id
+                WHERE e.autor_id = %s
+            """, (id,))
+            for adj in cur.fetchall():
+                if adj.get("clave_s3"):
+                    try:
+                        s3.delete_object(Bucket=BUCKET, Key=adj["clave_s3"])
+                    except Exception as e:
+                        app.logger.warning(f"No se pudo borrar objeto S3 {adj['clave_s3']}: {e}")
+
+            # Eliminar adjuntos, comentarios, entradas y usuario en RDS
+            cur.execute("DELETE a FROM adjuntos a JOIN entradas e ON e.id = a.entrada_id WHERE e.autor_id = %s", (id,))
+            cur.execute("DELETE c FROM comentarios c JOIN entradas e ON e.id = c.entrada_id WHERE e.autor_id = %s", (id,))
+            cur.execute("DELETE FROM comentarios WHERE usuario_id = %s", (id,))
+            cur.execute("DELETE FROM entradas WHERE autor_id = %s", (id,))
+            cur.execute("DELETE FROM usuarios WHERE id = %s", (id,))
+    finally:
+        conn.close()
+
+    flash(f"Usuario #{id} y todo su contenido han sido eliminados.", "info")
+    return redirect(url_for("moderar_usuarios"))
+
 @app.route("/moderar/<int:id>/<accion>", methods=["POST"])
 def moderar(id, accion):
     if session.get("rol") != "moderador":
