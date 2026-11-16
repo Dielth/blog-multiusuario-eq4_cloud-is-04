@@ -155,7 +155,46 @@ def ver_entrada(id):
         entrada["archivo_url"] = None
         entrada["es_imagen"] = False
 
-    return render_template("post.html", entrada=entrada)
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT c.id, c.contenido, c.creado_en AS fecha, u.nombre AS autor_nombre, u.rol AS autor_rol
+                FROM comentarios c
+                JOIN usuarios u ON u.id = c.usuario_id
+                WHERE c.entrada_id = %s
+                ORDER BY c.creado_en ASC
+            """, (id,))
+            comentarios = cur.fetchall()
+    finally:
+        conn.close()
+
+    return render_template("post.html", entrada=entrada, comentarios=comentarios)
+
+@app.route("/entrada/<int:id>/comentar", methods=["POST"])
+def comentar_entrada(id):
+    texto = request.form.get("comentario", "").strip()
+    if not texto:
+        flash("Escribe un comentario antes de publicar.", "warning")
+        return redirect(url_for("ver_entrada", id=id) + "#comentarios")
+
+    if not session.get("user_id"):
+        session["comentario_pendiente"] = {"entrada_id": id, "contenido": texto}
+        flash("Inicia sesión o crea una cuenta nueva para que tu comentario se publique automáticamente.", "info")
+        return redirect(url_for("login"))
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO comentarios (entrada_id, usuario_id, contenido) VALUES (%s, %s, %s)",
+                (id, session["user_id"], texto),
+            )
+    finally:
+        conn.close()
+
+    flash("¡Tu comentario ha sido publicado!", "success")
+    return redirect(url_for("ver_entrada", id=id) + "#comentarios")
 
 @app.route("/archivo/<int:adjunto_id>")
 def descargar_adjunto(adjunto_id):
@@ -174,11 +213,13 @@ def descargar_adjunto(adjunto_id):
     if not fila or not puede_ver(fila["estado"], fila["autor_id"]):
         abort(404)
 
+    forzar_descarga = request.args.get("download") == "1"
+    disposicion = "attachment" if forzar_descarga else "inline"
     objeto = s3.get_object(Bucket=BUCKET, Key=fila["clave_s3"])
     return Response(
         objeto["Body"].iter_chunks(chunk_size=8192),
         content_type=fila["tipo_mime"] or "application/octet-stream",
-        headers={"Content-Disposition": f'inline; filename="{fila["nombre_original"]}"'},
+        headers={"Content-Disposition": f'{disposicion}; filename="{fila["nombre_original"]}"'},
     )
 
 @app.route("/panel")
@@ -233,7 +274,8 @@ def editor(id=None):
                 entrada = cur.fetchone()
                 if not entrada or (entrada["autor_id"] != session["user_id"] and session.get("rol") != "moderador"):
                     flash("No tienes permiso para modificar esta publicación.", "danger")
-                    return redirect(url_for("panel"))
+                    destino_comentario = procesar_comentario_pendiente(user["id"])
+            return redirect(destino_comentario or url_for("panel"))
 
         if request.method == "POST":
             titulo = request.form.get("titulo", "").strip()
@@ -291,6 +333,22 @@ def moderar(id, accion):
 
     flash(f"Estado cambiado a '{nuevo_estado}' para la entrada #{id}.", "info")
     return redirect(url_for("panel"))
+
+def procesar_comentario_pendiente(user_id):
+    pendiente = session.pop("comentario_pendiente", None)
+    if pendiente and pendiente.get("entrada_id") and pendiente.get("contenido"):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO comentarios (entrada_id, usuario_id, contenido) VALUES (%s, %s, %s)",
+                    (pendiente["entrada_id"], user_id, pendiente["contenido"]),
+                )
+        finally:
+            conn.close()
+        flash("¡Bienvenido! Tu comentario pendiente fue publicado automáticamente.", "success")
+        return url_for("ver_entrada", id=pendiente["entrada_id"]) + "#comentarios"
+    return None
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -373,11 +431,21 @@ def registro():
                     "INSERT INTO usuarios (nombre, usuario, password_hash, rol) VALUES (%s, %s, %s, 'autor')",
                     (nombre, username, phash)
                 )
+                nuevo_id = cur.lastrowid
         finally:
             conn.close()
 
-        flash("Cuenta creada exitosamente. Ya puedes iniciar sesión.", "success")
-        return redirect(url_for("login"))
+        session["user_id"] = nuevo_id
+        session["nombre"] = nombre
+        session["usuario"] = username
+        session["rol"] = "autor"
+
+        destino_comentario = procesar_comentario_pendiente(nuevo_id)
+        if destino_comentario:
+            return redirect(destino_comentario)
+
+        flash("Cuenta creada exitosamente. ¡Bienvenido a CloudBlog!", "success")
+        return redirect(url_for("panel"))
 
     return render_template("registro.html")
 

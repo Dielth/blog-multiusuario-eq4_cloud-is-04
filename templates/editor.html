@@ -10,12 +10,12 @@
             <form method="POST" enctype="multipart/form-data">
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Título de la publicación *</label>
-                    <input type="text" name="titulo" class="form-control" value="{{ entrada.titulo if entrada else '' }}" placeholder="Ej. Configuración de Amazon S3">
+                    <input type="text" name="titulo" class="form-control" value="{{ entrada.titulo if entrada else '' }}" placeholder="Ej. Configuración de Amazon S3" required>
                 </div>
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">Categoría *</label>
-                        <select name="categoria_id" class="form-select">
+                        <select name="categoria_id" class="form-select" required>
                             <option value="">Selecciona una categoría...</option>
                             {% for c in categorias %}
                                 <option value="{{ c.id }}" {% if entrada and entrada.categoria_id == c.id %}selected{% endif %}>
@@ -34,15 +34,42 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Contenido del artículo *</label>
-                    <textarea name="contenido" rows="7" class="form-control" placeholder="Escribe aquí el cuerpo de la entrada...">{{ entrada.contenido if entrada else '' }}</textarea>
+                    <textarea name="contenido" rows="7" class="form-control" placeholder="Escribe aquí el cuerpo de la entrada..." required>{{ entrada.contenido if entrada else '' }}</textarea>
                 </div>
+
+                <!-- Recuadro Drag & Drop para subir archivos -->
                 <div class="mb-4">
                     <label class="form-label fw-semibold">Adjuntar imagen o documento (se guardará en S3 privado)</label>
-                    <input type="file" name="archivo" class="form-control">
+                    <div id="drop-zone" class="border border-2 border-dashed rounded-3 p-4 text-center bg-light"
+                         style="border-style: dashed !important; border-color: #0d6efd !important; cursor: pointer; transition: all 0.2s ease;">
+                        <input type="file" id="archivo-input" name="archivo" class="d-none">
+                        <div id="drop-placeholder">
+                            <i class="bi bi-cloud-arrow-up text-primary" style="font-size: 2.8rem;"></i>
+                            <p class="fw-semibold mb-1 mt-2">Arrastra y suelta tu archivo aquí</p>
+                            <p class="text-muted small mb-2">o haz clic para seleccionarlo desde tu equipo (PDF, imágenes, Word, Excel, código, ZIP...)</p>
+                            <span class="btn btn-sm btn-outline-primary">Seleccionar archivo</span>
+                        </div>
+                        <div id="file-preview-box" class="d-none">
+                            <img id="img-preview" src="" alt="Vista previa" class="img-thumbnail mb-2 d-none mx-auto" style="max-height: 150px;">
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <i class="bi bi-file-earmark-check-fill text-success fs-4"></i>
+                                <div class="text-start">
+                                    <div id="file-name" class="fw-semibold text-dark small"></div>
+                                    <div id="file-size" class="text-muted" style="font-size: 0.75rem;"></div>
+                                </div>
+                                <button type="button" id="remove-file-btn" class="btn btn-sm btn-outline-danger ms-2" title="Quitar archivo">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     {% if entrada and entrada.archivo_nombre %}
-                        <div class="form-text text-primary">Archivo actual asociado: <strong>{{ entrada.archivo_nombre }}</strong> (Sube otro solo si deseas reemplazarlo).</div>
+                        <div class="form-text text-primary mt-2">
+                            <i class="bi bi-paperclip"></i> Archivo actual asociado: <strong>{{ entrada.archivo_nombre }}</strong> (Arrastra o selecciona otro solo si deseas reemplazarlo).
+                        </div>
                     {% endif %}
                 </div>
+
                 <div class="d-flex justify-content-end gap-2">
                     <a href="{{ url_for('panel') }}" class="btn btn-outline-secondary">Cancelar</a>
                     <button type="submit" class="btn btn-primary px-4">Guardar Entrada</button>
@@ -51,4 +78,91 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('archivo-input');
+    const placeholder = document.getElementById('drop-placeholder');
+    const previewBox = document.getElementById('file-preview-box');
+    const fileNameEl = document.getElementById('file-name');
+    const fileSizeEl = document.getElementById('file-size');
+    const imgPreview = document.getElementById('img-preview');
+    const removeBtn = document.getElementById('remove-file-btn');
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function mostrarArchivo(file) {
+        if (!file) return;
+        fileNameEl.textContent = file.name;
+        fileSizeEl.textContent = formatBytes(file.size);
+        placeholder.classList.add('d-none');
+        previewBox.classList.remove('d-none');
+
+        if (file.type && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                imgPreview.src = e.target.result;
+                imgPreview.classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            imgPreview.classList.add('d-none');
+            imgPreview.src = '';
+        }
+    }
+
+    dropZone.addEventListener('click', (e) => {
+        if (e.target !== removeBtn && !removeBtn.contains(e.target)) {
+            fileInput.click();
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            mostrarArchivo(fileInput.files[0]);
+        }
+    });
+
+    ['dragenter', 'dragover'].forEach(evt => {
+        dropZone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('bg-light');
+            dropZone.classList.add('bg-primary', 'bg-opacity-10');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+        dropZone.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('bg-primary', 'bg-opacity-10');
+            dropZone.classList.add('bg-light');
+        });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+            fileInput.files = files;
+            mostrarArchivo(files[0]);
+        }
+    });
+
+    removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput.value = '';
+        previewBox.classList.add('d-none');
+        imgPreview.classList.add('d-none');
+        placeholder.classList.remove('d-none');
+    });
+})();
+</script>
 {% endblock %}

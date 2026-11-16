@@ -6,7 +6,7 @@
             <div class="text-center mb-4">
                 <i class="bi bi-person-plus-fill text-primary" style="font-size: 2.5rem;"></i>
                 <h2 class="h4 fw-bold mt-2">Crear Cuenta de Autor</h2>
-                <p class="text-muted small">Regístrate para redactar y publicar artículos en CloudBlog</p>
+                <p class="text-muted small">Regístrate para redactar, comentar y publicar artículos en CloudBlog</p>
             </div>
             <form method="POST">
                 <div class="mb-3">
@@ -20,10 +20,15 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Contraseña *</label>
-                    <input type="password" id="password" name="password" class="form-control"
-                           pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
-                           title="Mínimo 8 caracteres, con al menos una mayúscula, una minúscula y un número."
-                           placeholder="Mínimo 8 caracteres" required>
+                    <div class="input-group">
+                        <input type="password" id="password" name="password" class="form-control"
+                               pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                               title="Mínimo 8 caracteres, con al menos una mayúscula, una minúscula y un número."
+                               placeholder="Mínimo 8 caracteres" required>
+                        <button type="button" class="btn btn-outline-secondary toggle-pass" data-target="password" title="Mostrar u ocultar contraseña">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
                     <div class="form-text small mt-1">
                         Requisitos: <span id="req-len" class="text-muted">8+ caracteres</span> ·
                         <span id="req-may" class="text-muted">1 mayúscula</span> ·
@@ -33,7 +38,12 @@
                 </div>
                 <div class="mb-4">
                     <label class="form-label fw-semibold">Confirmar contraseña *</label>
-                    <input type="password" name="confirmar" class="form-control" placeholder="Repite tu contraseña" required>
+                    <div class="input-group">
+                        <input type="password" id="confirmar-password" name="confirmar" class="form-control" placeholder="Repite tu contraseña" required>
+                        <button type="button" class="btn btn-outline-secondary toggle-pass" data-target="confirmar-password" title="Mostrar u ocultar contraseña">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Registrarme</button>
             </form>
@@ -56,6 +66,20 @@ document.getElementById('password').addEventListener('input', function () {
     toggle('req-may', /[A-Z]/.test(v));
     toggle('req-min', /[a-z]/.test(v));
     toggle('req-num', /\d/.test(v));
+});
+
+document.querySelectorAll('.toggle-pass').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    });
 });
 </script>
 {% endblock %}

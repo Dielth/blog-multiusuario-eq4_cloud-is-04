@@ -81,3 +81,13 @@ INSERT INTO adjuntos (entrada_id, nombre_original, clave_s3, tipo_mime) VALUES
 -- Verificación rápida (para la captura "después"):
 --   SHOW TABLES;
 --   SELECT id, titulo, estado FROM entradas;
+
+CREATE TABLE IF NOT EXISTS comentarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    entrada_id INT NOT NULL,
+    usuario_id INT NOT NULL,
+    contenido TEXT NOT NULL,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (entrada_id) REFERENCES entradas(id) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

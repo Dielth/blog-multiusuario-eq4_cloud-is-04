@@ -7,7 +7,8 @@
                 <i class="bi bi-arrow-left"></i> Volver al inicio
             </a>
         </div>
-        <article class="card shadow-sm p-4 p-md-5">
+
+        <article class="card shadow-sm p-4 p-md-5 mb-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <span class="badge bg-info text-dark fs-6">{{ entrada.categoria }}</span>
                 {% if entrada.estado == 'borrador' %}
@@ -24,22 +25,228 @@
             {% if entrada.archivo_url %}
             <div class="p-3 mb-4 bg-light border rounded-3">
                 {% if entrada.es_imagen %}
-                    <img src="{{ entrada.archivo_url }}" class="img-fluid rounded mb-3 d-block mx-auto" style="max-height: 450px;" alt="{{ entrada.archivo_nombre }}">
+                    <img src="{{ entrada.archivo_url }}" class="img-fluid rounded mb-3 d-block mx-auto shadow-sm"
+                         style="max-height: 450px; cursor: zoom-in;" alt="{{ entrada.archivo_nombre }}"
+                         onclick="abrirVisor()">
                 {% endif %}
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <div>
-                        <i class="bi bi-cloud-arrow-down text-primary fs-5 me-2"></i>
-                        <strong>Archivo adjunto en la nube:</strong> <span class="text-muted">{{ entrada.archivo_nombre }}</span>
+                        <i class="bi bi-cloud-check-fill text-primary fs-5 me-2"></i>
+                        <strong>Archivo adjunto en la nube:</strong>
+                        <span class="text-muted">{{ entrada.archivo_nombre }}</span>
                     </div>
-                    <a href="{{ entrada.archivo_url }}" target="_blank" download class="btn btn-sm btn-primary">
-                        <i class="bi bi-download me-1"></i>Visualizar / Descargar
-                    </a>
+                    <div class="d-flex gap-2">
+                        <button type="button" onclick="abrirVisor()" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye me-1"></i>Visualizar
+                        </button>
+                        <a href="{{ entrada.archivo_url }}?download=1" download="{{ entrada.archivo_nombre }}" class="btn btn-sm btn-primary">
+                            <i class="bi bi-download me-1"></i>Descargar
+                        </a>
+                    </div>
                 </div>
             </div>
             {% endif %}
 
             <div class="fs-5 lh-lg" style="white-space: pre-line;">{{ entrada.contenido }}</div>
         </article>
+
+        <!-- Sección de Comentarios -->
+        <section id="comentarios" class="card shadow-sm p-4 p-md-5 mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="h4 fw-bold mb-0">
+                    <i class="bi bi-chat-dots-fill text-primary me-2"></i>Comentarios ({{ comentarios|length }})
+                </h3>
+                <span class="text-muted small">Comparte tu opinión con la comunidad</span>
+            </div>
+
+            <!-- Formulario para nuevo comentario -->
+            <form method="POST" action="{{ url_for('comentar_entrada', id=entrada.id) }}" class="mb-4">
+                <div class="mb-2">
+                    <textarea name="comentario" rows="3" class="form-control"
+                              placeholder="{{ 'Escribe un comentario agradable como ' + session.get('nombre') + '...' if session.get('user_id') else 'Escribe tu comentario aquí... (Al dar clic en Publicar te pediremos iniciar sesión o registrarte para publicarlo automáticamente)' }}"
+                              required></textarea>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        {% if session.get('user_id') %}
+                            <i class="bi bi-person-check-fill text-success me-1"></i>Publicando como <strong>{{ session.get('nombre') }}</strong>
+                        {% else %}
+                            <i class="bi bi-info-circle me-1"></i>¿Sin sesión? Tu texto se conservará al iniciar sesión o crear cuenta.
+                        {% endif %}
+                    </small>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-send me-1"></i>Publicar comentario
+                    </button>
+                </div>
+            </form>
+
+            <hr class="my-4">
+
+            <!-- Listado de comentarios -->
+            {% if comentarios %}
+                <div class="d-flex flex-column gap-3">
+                    {% for c in comentarios %}
+                    <div class="p-3 rounded-3 bg-light border">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge rounded-circle bg-primary d-inline-flex align-items-center justify-content-center"
+                                      style="width: 32px; height: 32px; font-size: 0.85rem;">
+                                    {{ c.autor_nombre[0]|upper }}
+                                </span>
+                                <div>
+                                    <strong class="text-dark">{{ c.autor_nombre }}</strong>
+                                    {% if c.autor_rol == 'moderador' %}
+                                        <span class="badge bg-dark ms-1" style="font-size: 0.7rem;">Moderador</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ c.fecha }}</small>
+                        </div>
+                        <p class="mb-0 text-dark" style="white-space: pre-line;">{{ c.contenido }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-chat-square-heart" style="font-size: 2.2rem;"></i>
+                    <p class="mt-2 mb-0">Aún no hay comentarios en esta publicación. ¡Sé el primero en dejar uno!</p>
+                </div>
+            {% endif %}
+        </section>
     </div>
 </div>
+
+{% if entrada.archivo_url %}
+<!-- Visor de Archivos con Efecto de Superposición (Overlay) -->
+<div id="visor-overlay" class="d-none position-fixed top-0 start-0 w-100 h-100"
+     style="background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(6px); z-index: 1055;">
+    <div id="visor-contenedor" class="d-flex flex-column h-100 p-2 p-md-4">
+        <!-- Barra superior del visor -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center bg-dark text-white px-3 py-2 rounded-top border-bottom border-secondary gap-2">
+            <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 45%;">
+                <i class="bi bi-file-earmark-richtext text-info fs-5"></i>
+                <span class="fw-semibold text-truncate" title="{{ entrada.archivo_nombre }}">{{ entrada.archivo_nombre }}</span>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <!-- Compartir -->
+                <button type="button" onclick="compartirArchivo()" class="btn btn-sm btn-outline-info" title="Compartir o copiar enlace">
+                    <i class="bi bi-share me-1"></i><span id="btn-compartir-txt">Compartir</span>
+                </button>
+                <!-- Descargar -->
+                <a href="{{ entrada.archivo_url }}?download=1" download="{{ entrada.archivo_nombre }}" class="btn btn-sm btn-primary" title="Descargar archivo">
+                    <i class="bi bi-download me-1"></i>Descargar
+                </a>
+                <!-- Abrir en pestaña nueva -->
+                <a href="{{ entrada.archivo_url }}" target="_blank" class="btn btn-sm btn-outline-light" title="Abrir en pestaña nueva">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                </a>
+                <!-- Pantalla completa -->
+                <button type="button" onclick="pantallaCompletaVisor()" class="btn btn-sm btn-outline-light" title="Pantalla completa">
+                    <i class="bi bi-arrows-fullscreen"></i>
+                </button>
+                <!-- Imprimir -->
+                <button type="button" onclick="imprimirVisor()" class="btn btn-sm btn-outline-light" title="Imprimir">
+                    <i class="bi bi-printer"></i>
+                </button>
+                <!-- Cerrar visor (arriba a la derecha) -->
+                <button type="button" onclick="cerrarVisor()" class="btn btn-sm btn-danger ms-2 fw-bold" title="Cerrar visor (Esc)">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Área central de previsualización -->
+        <div id="visor-cuerpo" class="flex-grow-1 bg-secondary bg-opacity-25 rounded-bottom d-flex align-items-center justify-content-center overflow-auto position-relative p-2"
+             onclick="if(event.target === this) cerrarVisor()">
+            {% set nombre_lower = (entrada.archivo_nombre or '').lower() %}
+            {% if entrada.es_imagen %}
+                <img id="visor-imagen" src="{{ entrada.archivo_url }}" alt="{{ entrada.archivo_nombre }}"
+                     class="img-fluid rounded shadow-lg" style="max-height: 85vh; transition: transform 0.2s;">
+            {% elif nombre_lower.endswith('.pdf') or nombre_lower.endswith('.txt') or nombre_lower.endswith('.py') or nombre_lower.endswith('.sql') or nombre_lower.endswith('.md') or nombre_lower.endswith('.json') or nombre_lower.endswith('.csv') %}
+                <iframe id="visor-frame" src="{{ entrada.archivo_url }}" class="w-100 h-100 bg-white rounded border-0 shadow-lg"></iframe>
+            {% else %}
+                <div class="card bg-dark text-white border-secondary p-5 text-center shadow-lg" style="max-width: 480px;">
+                    <i class="bi bi-file-earmark-zip text-info mb-3" style="font-size: 4rem;"></i>
+                    <h4 class="fw-bold">{{ entrada.archivo_nombre }}</h4>
+                    <p class="text-light opacity-75 small mb-4">
+                        Este formato de archivo no admite previsualización directa en el navegador, pero puedes descargarlo o compartir su enlace directo.
+                    </p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <a href="{{ entrada.archivo_url }}?download=1" download="{{ entrada.archivo_nombre }}" class="btn btn-primary">
+                            <i class="bi bi-download me-1"></i>Descargar ahora
+                        </a>
+                        <button type="button" onclick="compartirArchivo()" class="btn btn-outline-info">
+                            <i class="bi bi-share me-1"></i>Compartir enlace
+                        </button>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+const visorOverlay = document.getElementById('visor-overlay');
+
+function abrirVisor() {
+    visorOverlay.classList.remove('d-none');
+    document.body.style.overflow = 'hidden';
+}
+
+function cerrarVisor() {
+    if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+    }
+    visorOverlay.classList.add('d-none');
+    document.body.style.overflow = '';
+}
+
+function pantallaCompletaVisor() {
+    const cont = document.getElementById('visor-contenedor');
+    if (!document.fullscreenElement) {
+        cont.requestFullscreen().catch(() => {});
+    } else {
+        document.exitFullscreen().catch(() => {});
+    }
+}
+
+function imprimirVisor() {
+    const frame = document.getElementById('visor-frame');
+    if (frame && frame.contentWindow) {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+    } else {
+        window.open("{{ entrada.archivo_url }}", "_blank");
+    }
+}
+
+async function compartirArchivo() {
+    const urlCompleta = window.location.origin + "{{ entrada.archivo_url }}";
+    const titulo = "{{ entrada.archivo_nombre }} - {{ entrada.titulo }}";
+    const btnTxt = document.getElementById('btn-compartir-txt');
+
+    if (navigator.share) {
+        try {
+            await navigator.share({ title: titulo, url: urlCompleta });
+            return;
+        } catch (e) {}
+    }
+
+    try {
+        await navigator.clipboard.writeText(urlCompleta);
+        btnTxt.textContent = "¡Enlace copiado!";
+        setTimeout(() => { btnTxt.textContent = "Compartir"; }, 2500);
+    } catch (e) {
+        prompt("Copia este enlace directo al archivo:", urlCompleta);
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !visorOverlay.classList.contains('d-none')) {
+        cerrarVisor();
+    }
+});
+</script>
+{% endif %}
 {% endblock %}
