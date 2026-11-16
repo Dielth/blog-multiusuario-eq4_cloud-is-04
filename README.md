@@ -20,7 +20,6 @@ Aplicacion web multiusuario desarrollada en **Python (Flask)** y desplegada sobr
 * **Registro y Autenticacion Segura:**
   * Contrasenas almacenadas mediante hash criptografico (Werkzeug).
   * Validacion de complejidad minima de 8 caracteres (mayusculas, minusculas y numeros) con indicador visual en tiempo real.
-  * Boton para alternar la visibilidad de la contrasena en inicio de sesion y registro.
 
 ### 2. Publicaciones y Almacenamiento en S3
 * **Zona Drag & Drop:** Carga de archivos arrastrando y soltando con vista previa inmediata antes de guardar.
