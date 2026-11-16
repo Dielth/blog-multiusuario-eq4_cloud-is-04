@@ -274,8 +274,7 @@ def editor(id=None):
                 entrada = cur.fetchone()
                 if not entrada or (entrada["autor_id"] != session["user_id"] and session.get("rol") != "moderador"):
                     flash("No tienes permiso para modificar esta publicación.", "danger")
-                    destino_comentario = procesar_comentario_pendiente(user["id"])
-            return redirect(destino_comentario or url_for("panel"))
+                    return redirect(url_for("panel"))
 
         if request.method == "POST":
             titulo = request.form.get("titulo", "").strip()
