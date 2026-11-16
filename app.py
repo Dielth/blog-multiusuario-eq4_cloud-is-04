@@ -1,3 +1,4 @@
+import re
 from werkzeug.security import generate_password_hash
 import os
 import uuid
@@ -346,8 +347,13 @@ def registro():
             flash("El nombre de usuario no puede contener espacios.", "danger")
             return render_template("registro.html")
 
-        if len(password) < 4:
-            flash("La contraseña debe tener al menos 4 caracteres.", "danger")
+        if (
+            len(password) < 8
+            or not re.search(r"[A-Z]", password)
+            or not re.search(r"[a-z]", password)
+            or not re.search(r"\d", password)
+        ):
+            flash("La contraseña debe tener al menos 8 caracteres e incluir mayúsculas, minúsculas y números.", "danger")
             return render_template("registro.html")
 
         if password != confirmar:

@@ -20,7 +20,16 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Contraseña *</label>
-                    <input type="password" name="password" class="form-control" placeholder="Mínimo 4 caracteres" required>
+                    <input type="password" id="password" name="password" class="form-control"
+                           pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                           title="Mínimo 8 caracteres, con al menos una mayúscula, una minúscula y un número."
+                           placeholder="Mínimo 8 caracteres" required>
+                    <div class="form-text small mt-1">
+                        Requisitos: <span id="req-len" class="text-muted">8+ caracteres</span> ·
+                        <span id="req-may" class="text-muted">1 mayúscula</span> ·
+                        <span id="req-min" class="text-muted">1 minúscula</span> ·
+                        <span id="req-num" class="text-muted">1 número</span>
+                    </div>
                 </div>
                 <div class="mb-4">
                     <label class="form-label fw-semibold">Confirmar contraseña *</label>
@@ -36,4 +45,17 @@
         </div>
     </div>
 </div>
+<script>
+document.getElementById('password').addEventListener('input', function () {
+    const v = this.value;
+    const toggle = (id, ok) => {
+        const el = document.getElementById(id);
+        el.className = ok ? 'text-success fw-semibold' : 'text-muted';
+    };
+    toggle('req-len', v.length >= 8);
+    toggle('req-may', /[A-Z]/.test(v));
+    toggle('req-min', /[a-z]/.test(v));
+    toggle('req-num', /\d/.test(v));
+});
+</script>
 {% endblock %}
