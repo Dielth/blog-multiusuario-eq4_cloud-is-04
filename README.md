@@ -2,7 +2,7 @@
 
 Proyecto final de la materia **Servicios Cloud (IS-04)** - Facultad de Informatica, Universidad Autonoma de Queretaro (UAQ) - **Equipo 4**.
 
-Aplicacion web multiusuario desarrollada en **Python (Flask)** y desplegada sobre infraestructura de **Amazon Web Services (AWS)**, disenada para publicar articulos tecnicos, gestionar archivos adjuntos de forma privada en la nube, moderar contenido y administrar usuarios por roles.
+Aplicacion web multiusuario desarrollada en **Python (Flask)** y desplegada sobre infraestructura de **Amazon Web Services (AWS)**, diseñada para publicar articulos tecnicos, gestionar archivos adjuntos de forma privada en la nube, moderar contenido y administrar usuarios por roles.
 
 ## Arquitectura en la Nube (AWS)
 
