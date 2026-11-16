@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm p-4">
+            <h3 class="h4 fw-bold mb-3">
+                <i class="bi bi-pencil-square text-primary me-2"></i>
+                {{ 'Editar Publicación' if entrada else 'Redactar Nueva Entrada' }}
+            </h3>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Título de la publicación *</label>
+                    <input type="text" name="titulo" class="form-control" value="{{ entrada.titulo if entrada else '' }}" placeholder="Ej. Configuración de Amazon S3">
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Categoría *</label>
+                        <select name="categoria_id" class="form-select">
+                            <option value="">Selecciona una categoría...</option>
+                            {% for c in categorias %}
+                                <option value="{{ c.id }}" {% if entrada and entrada.categoria_id == c.id %}selected{% endif %}>
+                                    {{ c.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Estado de visibilidad *</label>
+                        <select name="estado" class="form-select">
+                            <option value="borrador" {% if entrada and entrada.estado == 'borrador' %}selected{% endif %}>Guardar como Borrador (Solo visible para mí)</option>
+                            <option value="publicada" {% if entrada and entrada.estado == 'publicada' %}selected{% endif %}>Publicada (Visible para todos)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Contenido del artículo *</label>
+                    <textarea name="contenido" rows="7" class="form-control" placeholder="Escribe aquí el cuerpo de la entrada...">{{ entrada.contenido if entrada else '' }}</textarea>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Adjuntar imagen o documento (se guardará en S3 privado)</label>
+                    <input type="file" name="archivo" class="form-control">
+                    {% if entrada and entrada.archivo_nombre %}
+                        <div class="form-text text-primary">Archivo actual asociado: <strong>{{ entrada.archivo_nombre }}</strong> (Sube otro solo si deseas reemplazarlo).</div>
+                    {% endif %}
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ url_for('panel') }}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-primary px-4">Guardar Entrada</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
